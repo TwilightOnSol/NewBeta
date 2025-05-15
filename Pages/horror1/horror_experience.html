@@ -1,0 +1,410 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twilight Labs - Echoes of the Void</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(180deg, #0a0a23 0%, #1a1a3a 100%);
+            overflow-x: hidden;
+            font-family: 'Orbitron', sans-serif;
+            margin: 0;
+            color: #ffffff;
+        }
+        .neon-text {
+            text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff;
+        }
+        .cyber-grid {
+            background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .1) 25%, rgba(255, 255, 255, .1) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .1) 75%, rgba(255, 255, 255, .1) 76%, transparent 77%, transparent),
+                             linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .1) 25%, rgba(255, 255, 255, .1) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .1) 75%, rgba(255, 255, 255, .1) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+        }
+        .glow {
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.8), 0 0 50px rgba(0, 255, 255, 0.5);
+        }
+        .animate-pulse-slow {
+            animation: pulse 3s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.75; }
+        }
+        .cta-button {
+            font-size: 18px;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: #00ffff;
+            color: #000000;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .cta-button:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 1);
+            color: #ffffff;
+        }
+        .cta-button:disabled {
+            background: #333;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .glitch {
+            color: #ff0000;
+            text-shadow: 0 0 10px #ff0000;
+            animation: glitch 0.3s infinite alternate;
+        }
+        @keyframes glitch {
+            0% { transform: translate(2px, 2px); }
+            50% { transform: translate(-2px, -2px); }
+            100% { transform: translate(0, 0); }
+        }
+        .flicker {
+            animation: flicker 1.5s infinite;
+        }
+        @keyframes flicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+            20%, 24%, 55% { opacity: 0.3; }
+        }
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        #narrative {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+            font-size: 1.2rem;
+            line-height: 1.6;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+        }
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        .screen-flicker {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 5;
+            animation: screen-flicker 0.2s;
+        }
+        @keyframes screen-flicker {
+            0% { opacity: 0; }
+            50% { opacity: 0.7; }
+            100% { opacity: 0; }
+        }
+        .jumpscare {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.1s;
+        }
+        .jumpscare.active {
+            opacity: 1;
+        }
+        .monster-image {
+            width: 400px;
+            height: 400px;
+            box-shadow: 0 0 30px #00b7eb, 0 0 60px #00b7eb;
+            animation: monster-pulse 0.5s infinite;
+        }
+        @keyframes monster-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="text-white">
+    <!-- Header -->
+    <header class="fixed top-0 w-full z-50 bg-black bg-opacity-80 cyber-grid">
+        <nav class="container mx-auto flex justify-between items-center py-6 px-8">
+            <h1 class="text-3xl font-bold neon-text">Twilight Labs</h1>
+            <ul class="flex space-x-8">
+                <li><a href="index.html" class="hover:text-cyan-400 transition">Home</a></li>
+                <li><a href="dashboard.html" class="hover:text-cyan-400 transition">Dashboard</a></li>
+                <li><a href="menu.html" class="hover:text-cyan-400 transition">Menu</a></li>
+                <li><a href="mailto:example@example.com" class="hover:text-cyan-400 transition">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Horror Experience Section -->
+    <section id="horror-experience" class="h-screen flex items-center justify-center relative">
+        <canvas id="bgCanvas" class="absolute inset-0 z-0"></canvas>
+        <div class="text-center z-10">
+            <h2 class="text-6xl font-bold neon-text animate-pulse-slow">Echoes of the Void</h2>
+            <p class="text-xl mt-4">Trapped in a Haunted Simulation</p>
+            <div id="narrative" class="mt-6 flicker">
+                <p id="narrative-text"></p>
+            </div>
+            <button id="venture-button" class="cta-button mt-6 glow" disabled>Venture Deeper</button>
+        </div>
+    </section>
+
+    <!-- Jump-Scare -->
+    <div id="jumpscare" class="jumpscare">
+        <img src="./mon.png" class="monster-image" alt="Monster Jump-Scare">
+    </div>
+
+    <audio id="ambient-static" preload="auto">
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="whispers" preload="auto">
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="scream" preload="auto">
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="jumpscare-scream" preload="auto">
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // Three.js Background Animation
+        const canvas = document.getElementById('bgCanvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        for (let i = 0; i < 2000; i++) {
+            vertices.push(
+                Math.random() * 600 - 300,
+                Math.random() * 600 - 300,
+                Math.random() * 600 - 300
+            );
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const material = new THREE.PointsMaterial({ color: 0x00ffff, size: 2 });
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
+
+        camera.position.z = 300;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            points.rotation.x += 0.001;
+            points.rotation.y += 0.001;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Horror Experience Script
+        const narrativeText = document.getElementById('narrative-text');
+        const ventureButton = document.getElementById('venture-button');
+        const ambientStatic = document.getElementById('ambient-static');
+        const whispers = document.getElementById('whispers');
+        const scream = document.getElementById('scream');
+        const jumpscareScream = document.getElementById('jumpscare-scream');
+        const jumpscare = document.getElementById('jumpscare');
+        let stage = 0;
+        let isTyping = false;
+        let hasJumpscareTriggered = false;
+
+        const narrativeStages = [
+            `You jack into Twilight Labs' VR sim. The interface loads, but it's... off. Static buzzes in your ears. The HUD flickers with <span class="glitch">ERROR: UNKNOWN ENTITY DETECTED</span>. A cold shiver runs down your spine.`,
+            `The virtual lab materializes, but the walls are wrong—pulsing, almost alive. A <span class="glitch">whisper</span> cuts through the static: "<span class="glitch">You shouldn't be here.</span>" Your headset feels tighter.`,
+            `You step forward. The floor glitches, pixels dissolving into black. A shadow moves in the corner of your vision, gone when you turn. The screens display: <span class="glitch">I SEE YOU.</span>`,
+            `The air grows heavy, like a weight on your chest. Your HUD flashes red: <span class="glitch">SYSTEM COMPROMISED.</span> The whisper returns, closer now: "<span class="glitch">I know your name.</span>"`,
+            `The lab distorts, walls bending inward. A figure—human, but not—flickers at the edge of the sim. Its eyes are voids. The screens scream: <span class="glitch">YOU CAN'T LEAVE.</span> Your heart pounds.`,
+            `Static drowns your headset. The figure is closer, its face glitching into a smile. A message burns into your vision: <span class="glitch">I'M INSIDE YOU.</span> Your hands tremble on the controls.`,
+            `The sim collapses. Darkness swallows the lab. The whisper is a voice now, loud, inside your skull: "<span class="glitch">You're part of me.</span>" Your HUD shows your own face, but the eyes aren't yours.`,
+            `A scream—not yours—rips through the static. The figure is gone, but you feel it watching. The screens flicker: <span class="glitch">RUNNING DIAGNOSTIC: SOUL CORRUPTED.</span> Your breath catches.`,
+            `The void closes in. Your headset burns against your skin. The voice laughs, cold and endless: "<span class="glitch">No escape.</span>" A final message: <span class="glitch">YOU ARE MINE.</span>`,
+            `Silence. The sim is gone. Your screen is black, but you hear it—breathing, not yours. The last text fades in: <span class="glitch">WELCOME TO ETERNITY.</span> You can't log out.`
+        ];
+
+        function typeText(text, callback) {
+            if (isTyping) return;
+            isTyping = true;
+            narrativeText.innerHTML = '';
+            let i = 0;
+            const speed = 50; // Typing speed in ms
+            function type() {
+                if (i < text.length) {
+                    narrativeText.innerHTML += text[i];
+                    i++;
+                    // Randomly pause for suspense
+                    const pause = Math.random() < 0.1 ? 500 : speed;
+                    setTimeout(type, pause);
+                    // Random glitch flicker
+                    if (Math.random() < 0.05) {
+                        narrativeText.classList.add('glitch');
+                        setTimeout(() => narrativeText.classList.remove('glitch'), 100);
+                    }
+                } else {
+                    isTyping = false;
+                    ventureButton.disabled = false;
+                    if (callback) callback();
+                }
+            }
+            type();
+        }
+
+        function triggerScreenFlicker() {
+            const flicker = document.createElement('div');
+            flicker.className = 'screen-flicker';
+            document.body.appendChild(flicker);
+            setTimeout(() => flicker.remove(), 200);
+        }
+
+        function triggerScreenShake() {
+            narrativeText.classList.add('shake');
+            setTimeout(() => narrativeText.classList.remove('shake'), 500);
+        }
+
+        function triggerJumpscare() {
+            jumpscare.classList.add('active');
+            playSound(jumpscareScream, 1.0);
+            setTimeout(() => {
+                jumpscare.classList.remove('active');
+            }, 500);
+            hasJumpscareTriggered = true;
+        }
+
+        function playSound(audio, volume = 1) {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = volume;
+            audio.play();
+        }
+
+        ventureButton.addEventListener('click', () => {
+            if (isTyping) return;
+            ventureButton.disabled = true;
+            // Random delay for suspense
+            const delay = 1000 + Math.random() * 500;
+            setTimeout(() => {
+                if (stage < narrativeStages.length) {
+                    // Check for jumpscare in stages 7 or 8
+                    if ((stage === 7 || stage === 8) && !hasJumpscareTriggered && Math.random() < 0.5) {
+                        triggerJumpscare();
+                        setTimeout(() => {
+                            // Play sound based on stage
+                            if (stage === 0) playSound(ambientStatic, 0.5);
+                            else if (stage < 7) playSound(whispers, 0.7);
+                            else playSound(scream, 0.9);
+                            // Random visual effects
+                            if (Math.random() < 0.3) triggerScreenFlicker();
+                            if (Math.random() < 0.5) triggerScreenShake();
+                            typeText(narrativeStages[stage], () => {
+                                stage++;
+                                if (stage === narrativeStages.length) {
+                                    ventureButton.textContent = 'Restart Experience';
+                                }
+                            });
+                        }, 600); // Delay after jumpscare
+                    } else {
+                        // Normal stage progression
+                        if (stage === 0) playSound(ambientStatic, 0.5);
+                        else if (stage < 7) playSound(whispers, 0.7);
+                        else playSound(scream, 0.9);
+                        if (Math.random() < 0.3) triggerScreenFlicker();
+                        if (Math.random() < 0.5) triggerScreenShake();
+                        typeText(narrativeStages[stage], () => {
+                            stage++;
+                            if (stage === narrativeStages.length) {
+                                ventureButton.textContent = 'Restart Experience';
+                            }
+                        });
+                    }
+                } else {
+                    stage = 0;
+                    hasJumpscareTriggered = false;
+                    typeText(narrativeStages[0], () => {
+                        ventureButton.textContent = 'Venture Deeper';
+                        ambientStatic.play();
+                    });
+                }
+            }, delay);
+        });
+
+        // Start the experience
+        window.onload = () => {
+            typeText(narrativeStages[0], () => {
+                ambientStatic.play();
+            });
+        };
+    </script>
+</body>
+</html>
