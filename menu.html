@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twilight Labs - Menu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(180deg, #0a0a23 0%, #1a1a3a 100%);
+            overflow-x: hidden;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .neon-text {
+            text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff;
+        }
+        .cyber-grid {
+            background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .1) 25%, rgba(255, 255, 255, .1) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .1) 75%, rgba(255, 255, 255, .1) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .1) 25%, rgba(255, 255, 255, .1) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .1) 75%, rgba(255, 255, 255, .1) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+        }
+        .glow {
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.8), 0 0 50px rgba(0, 255, 255, 0.5);
+        }
+        .animate-pulse-slow {
+            animation: pulse 3s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.75; }
+        }
+        .menu-grid {
+    	    padding-top: 100px; /* Adjust this value as needed */
+
+            display: grid;
+            grid-template-columns: repeat(4, 200px);
+            grid-template-rows: repeat(4, 200px);
+            gap: 20px;
+            justify-content: center;
+            align-content: center;
+            margin-top: 80px;
+        }
+        .menu-item {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            color: #00ffff;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-decoration: none;
+            text-align: center;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 255, 255, 0.3);
+            backdrop-filter: blur(5px);
+        }
+
+        .menu-item:hover {
+            background: rgba(0, 255, 255, 0.2);
+            color: #000000;
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 255, 255, 0.6);
+        }
+
+        .menu-item:active {
+            transform: scale(1) translateY(0);
+            box-shadow: 0 4px 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .menu-item.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .menu-item.disabled:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #00ffff;
+            transform: none;
+            box-shadow: 0 4px 10px rgba(0, 255, 255, 0.3);
+        }
+
+        .cta-button {
+            font-size: 18px;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cta-button:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 1);
+        }
+
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="text-white">
+    <!-- Header -->
+    <header class="fixed top-0 w-full z-50 bg-black bg-opacity-80 cyber-grid">
+        <nav class="container mx-auto flex justify-between items-center py-6 px-8">
+            <h1 class="text-3xl font-bold neon-text">Twilight Labs</h1>
+            <ul class="flex space-x-8">
+                <li><a href="index.html" class="hover:text-cyan-400 transition">Home</a></li>
+                <li><a href="dashboard.html" class="hover:text-cyan-400 transition">Dashboard</a></li>
+                <li><a href="menu.html" class="hover:text-cyan-400 transition">Menu</a></li>
+                <li><a href="mailto:example@example.com" class="hover:text-cyan-400 transition">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Menu Section -->
+    <section class="menu-section h-screen flex items-center justify-center relative">
+        <canvas id="bgCanvas" class="absolute inset-0 z-0"></canvas>
+        <div class="text-center z-10">
+            <div class="menu-grid">
+                <a href="index.html" class="menu-item">Home</a>
+                <a href="Pages/TwiLaunch/index.html" class="menu-item">Game Launcher</a>
+                <a href="Pages/mc-rip/shadow.html" class="menu-item">Shadow Client (Minecraft)</a>
+                <a href="Pages/dizzy/index.html" class="menu-item">Discord Server</a>
+                <a href="Pages/mine-stat/index.html" class="menu-item">Solo Mining Stats</a>
+                <a href="Pages/shards/index.html" class="menu-item">$Shards Token</a>
+                <a href="Pages/twilighttvfix/twilight-tv.html" class="menu-item">Twilight TV</a>
+                <div class="menu-item disabled">Coming Soon</div>
+                <div class="menu-item disabled">Coming Soon</div>
+                <div class="menu-item disabled">Coming Soon</div>
+                <div class="menu-item disabled">Coming Soon</div>
+                <div class="menu-item disabled">Coming Soon</div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Three.js Background Animation for Menu
+        const canvas = document.getElementById('bgCanvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        for (let i = 0; i < 2000; i++) {
+            vertices.push(
+                Math.random() * 600 - 300,
+                Math.random() * 600 - 300,
+                Math.random() * 600 - 300
+            );
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const material = new THREE.PointsMaterial({ color: 0x00ffff, size: 2 });
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
+
+        camera.position.z = 300;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            points.rotation.x += 0.001;
+            points.rotation.y += 0.001;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

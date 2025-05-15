@@ -1,0 +1,309 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nightfall Guild</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(180deg, #0a0a23 0%, #1a1a3a 100%);
+            overflow-x: hidden;
+            font-family: 'Orbitron', sans-serif;
+        }
+        .neon-text {
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff, 0 0 30px #ff00ff;
+        }
+        .cyber-grid {
+            background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+        }
+        .glow {
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5), 0 0  apresentação30px rgba(255, 0, 255, 0.3);
+        }
+        .animate-pulse-slow {
+            animation: pulse 4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .leaderboard-row {
+            transition: all 0.3s ease;
+        }
+        .leaderboard-row:hover {
+            transform: scale(1.05);
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.2));
+            text-shadow: 0 0 10px #00ffff;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="text-white">
+    <!-- Header -->
+    <header class="fixed top-0 w-full z-50 bg-black bg-opacity-80 cyber-grid">
+        <nav class="container mx-auto flex justify-between items-center py-4 px-6">
+            <h1 class="text-3xl font-bold neon-text">Nightfall</h1>
+            <ul class="flex space-x-6">
+                <li><a href="#home" class="hover:text-cyan-400 transition">Home</a></li>
+                <li><a href="#stats" class="hover:text-cyan-400 transition">Stats</a></li>
+                <li><a href="#team" class="hover:text-cyan-400 transition">Team</a></li>
+                <li><a href="#web3" class="hover:text-cyan-400 transition">Web3</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="h-screen flex items-center justify-center relative">
+        <canvas id="bgCanvas" class="absolute inset-0 z-0"></canvas>
+        <div class="text-center z-10">
+            <h2 class="text-6xl font-bold neon-text animate-pulse-slow">Nightfall Guild</h2>
+            <p class="text-xl mt-4">Dominating E-Sports, Gaming, and Web3 Realms</p>
+            <a href="#stats" class="mt-6 inline-block bg-cyan-500 text-black px-6 py-3 rounded glow hover:bg-cyan-400 transition">View Stats</a>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section id="stats" class="py-20 cyber-grid">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold neon-text text-center mb-12">Guild Stats</h2>
+            <!-- Overview Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+                <div class="bg-black bg-opacity-70 p-6 rounded glow text-center">
+                    <h3 class="text-xl neon-text">Leaderboard Scores</h3>
+                    <p class="text-4xl mt-4">5+</p>
+                </div>
+                <div class="bg-black bg-opacity-70 p-6 rounded glow text-center">
+                    <h3 class="text-xl neon-text">Total Matches</h3>
+                    <p class="text-4xl mt-4">110+</p>
+                </div>
+                <div class="bg-black bg-opacity-70 p-6 rounded glow text-center">
+                    <h3 class="text-xl neon-text">Win Rate</h3>
+                    <p class="text-4xl mt-4">67.95%</p>
+                </div>
+                <div class="bg-black bg-opacity-70 p-6 rounded glow text-center">
+                    <h3 class="text-xl neon-text">Web3 Earnings</h3>
+                    <p class="text-4xl mt-4">1,000+ USD</p>
+                </div>
+            </div>
+            <!-- Game-Specific Stats -->
+            <h3 class="text-3xl font-bold neon-text text-center mb-8">Game Breakdown</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                <div class="bg-black bg-opacity-70 p-6 rounded glow">
+                    <h4 class="text-xl neon-text">Bee Swarm Simulator</h4>
+                    <p class="mt-2">Hours (combined): 2000+</p>
+                    <p>Avg. Bees: 35</p>
+                    <p>PuffShroom Runs: 33+</p>
+                    <p>Honey Gathered: 100 Trillion</p>
+                    <p>Bugs Killed: 1000+</p>
+                </div>
+                <div class="bg-black bg-opacity-70 p-6 rounded glow">
+                    <h4 class="text-xl neon-text">Pixel Gun 3D</h4>
+                    <p class="mt-2">Matches: 200+</p>
+                    <p>Win Rate: 68%</p>
+                    <p>Avg. KD: 1.8</p>
+                    <p>Clan Ranks: Gold/Crystal</p>
+                    <p>Hackers Humbled: 100+</p>
+                </div>
+                <div class="bg-black bg-opacity-70 p-6 rounded glow">
+                    <h4 class="text-xl neon-text">Minecraft (1.20+)</h4>
+                    <p class="mt-2">Matches: 55+</p>
+                    <p>Win Rate (1v1): 63%</p>
+                    <p>Avg. KD: 1.3</p>
+                    <p>Avg. Hours: 200+</p>
+                    <p>Avg. Years Played: 2.5</p>
+                </div>
+            </div>
+            <!-- Leaderboard -->
+            <h3 class="text-3xl font-bold neon-text text-center mb-8">Player Leaderboard</h3>
+            <div class="bg-black bg-opacity-70 p-6 rounded glow">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b border-cyan-500">
+                            <th class="py-2">Rank</th>
+                            <th class="py-2">Player</th>
+                            <th class="py-2">Years Served</th>
+                            <th class="py-2">K/D Ratio</th>
+                            <th class="py-2">Hours Played</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard">
+                        <tr class="leaderboard-row border-b border-gray-700 hover:bg-cyan-900">
+                            <td class="py-2">1</td>
+                            <td class="py-2">EggMan</td>
+                            <td class="py-2">3+</td>
+                            <td class="py-2">n/a</td>
+                            <td class="py-2">1000+</td>
+                        </tr>
+                        <tr class="leaderboard-row border-b border-gray-700 hover:bg-cyan-900">
+                            <td class="py-2">2</td>
+                            <td class="py-2">Conmine47</td>
+                            <td class="py-2">4+</td>
+                            <td class="py-2">2.2</td>
+                            <td class="py-2">700+</td>
+                        </tr>
+                        <tr class="leaderboard-row hover:bg-cyan-900">
+                            <td class="py-2">3</td>
+                            <td class="py-2">Willbur</td>
+                            <td class="py-2">1+</td>
+                            <td class="py-2">2.1</td>
+                            <td class="py-2">330+</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section id="team" class="py-20">
+        <div class="container mx-auto px-6">
+            <h2 class="text-4xl font-bold neon-text text-center mb-12">Our Team</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="bg-black bg-opacity-70 p-6 rounded glow text-center">
+                    <h3 class="text-2xl neon-text">Twilight</h3>
+                    <p class="mt-2">Team Captain</p>
+                </div>
+                <div class="bg-black bg-opacity-70 p-6 rounded glow text-center">
+                    <h3 class="text-2xl neon-text">EggMan</h3>
+                    <p class="mt-2">Bee Swarm Hobbist</p>
+                </div>
+                <div class="bg-black bg-opacity-70 p-6 rounded glow text-center">
+                    <h3 class="text-2xl neon-text">Benjamin</h3>
+                    <p class="mt-2">For those who know...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Web3 Section -->
+    <section id="web3" class="py-20 cyber-grid">
+        <div class="container mx-auto px-6 text-center">
+            <h2 class="text-4xl font-bold neon-text mb-12">Web3 Gaming</h2>
+            <p class="text-xl mb-6">Nightfall is pioneering the future of gaming with Web3 integration. Own your assets, trade NFTs, and compete in decentralized tournaments.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-black bg-opacity-80 py-6 cyber-grid">
+        <div class="container mx-auto px-6 text-center">
+            <p>© 2025 Nightfall Guild. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Three.js Background Animation
+        const canvas = document.getElementById('bgCanvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        for (let i = 0; i < 1000; i++) {
+            vertices.push(
+                Math.random() * 400 - 200,
+                Math.random() * 400 - 200,
+                Math.random() * 400 - 200
+            );
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const material = new THREE.PointsMaterial({ color: 0x00ffff, size: 2 });
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
+
+        camera.position.z = 200;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            points.rotation.x += 0.001;
+            points.rotation.y += 0.002;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Dynamic Leaderboard Sorting (Mock Interaction)
+        const leaderboardData = [
+            { rank: 1, player: 'EggMan', yearsServed: '3+', kd: 'n/a', hours: '1000+' },
+            { rank: 2, player: 'Conmine47', yearsServed: '4+', kd: '2.2', hours: '700+' },
+            { rank: 3, player: 'Willbur', yearsServed: '1+', kd: '2.1', hours: '330+' }
+        ];
+
+        function renderLeaderboard(sortBy = 'hours') {
+            const tbody = document.getElementById('leaderboard');
+            tbody.innerHTML = '';
+            leaderboardData.sort((a, b) => {
+                if (sortBy === 'hours' || sortBy === 'yearsServed') {
+                    // Convert string values like "1000+" to numbers for sorting
+                    const aVal = parseInt(a[sortBy].replace('+', '')) || 0;
+                    const bVal = parseInt(b[sortBy].replace('+', '')) || 0;
+                    return bVal - aVal;
+                }
+                return a[sortBy] < b[sortBy] ? 1 : -1;
+            }).forEach((row, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'leaderboard-row border-b border-gray-700 hover:bg-cyan-900';
+                tr.innerHTML = `
+                    <td class="py-2">${index + 1}</td>
+                    <td class="py-2">${row.player}</td>
+                    <td class="py-2">${row.yearsServed}</td>
+                    <td class="py-2">${row.kd}</td>
+                    <td class="py-2">${row.hours}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Initial render
+        renderLeaderboard();
+    </script>
+</body>
+</html>

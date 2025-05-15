@@ -1,0 +1,739 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twilight Labs - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(180deg, #0a0a23 0%, #1a1a3a 100%);
+            overflow-x: hidden;
+            font-family: 'Orbitron', sans-serif;
+            margin: 0;
+            color: #ffffff;
+        }
+        .neon-text {
+            text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff, 0 0 60px #00ffff;
+        }
+        .cyber-grid {
+            background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .1) 25%, rgba(255, 255, 255, .1) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .1) 75%, rgba(255, 255, 255, .1) 76%, transparent 77%, transparent),
+                             linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .1) 25%, rgba(255, 255, 255, .1) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .1) 75%, rgba(255, 255, 255, .1) 76%, transparent 77%, transparent);
+            background-size: 50px 50px;
+        }
+        .glow {
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.8), 0 0 50px rgba(0, 255, 255, 0.5);
+        }
+        .animate-pulse-slow {
+            animation: pulse 3s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.75; }
+        }
+        .cta-button {
+            font-size: 18px;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .cta-button:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 1);
+        }
+        input[type="file"], input[type="password"] {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 12px 0;
+            font-size: 1rem;
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            background: transparent;
+            color: #00ffff;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            font-family: 'Orbitron', sans-serif;
+        }
+        input[type="file"]::-webkit-file-upload-button {
+            background: #00ffff;
+            color: #000000;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            transition: background 0.3s ease;
+        }
+        input[type="file"]::-webkit-file-upload-button:hover {
+            background: #00ff7f;
+        }
+        input[type="password"]::placeholder {
+            color: rgba(0, 255, 255, 0.7);
+        }
+        input[type="password"]:focus {
+            border-color: #00ff7f;
+            box-shadow: 0 0 15px rgba(0, 255, 127, 0.5);
+        }
+        .error, .success, .passphrase-feedback {
+            font-size: 1rem;
+            margin-top: 12px;
+        }
+        .error {
+            color: #ff4500;
+            text-shadow: 0 0 10px #ff4500;
+        }
+        .success {
+            color: #00ff7f;
+            text-shadow: 0 0 10px #00ff7f;
+        }
+        .passphrase-feedback {
+            color: #ffd700;
+            text-shadow: 0 0 10px #ffd700;
+        }
+        .login-container, .backup-container, .load-container, .dashboard {
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 15px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            display: none;
+            transform: translateY(20px);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .container-active, .dashboard-active {
+            display: block;
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .btn-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .login-container-top {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+        }
+        .gems-container {
+            padding: 5px 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            color: #00ffff;
+            font-size: 1rem;
+            text-shadow: 0 0 10px #00ffff;
+            display: none;
+        }
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="text-white">
+    <!-- Header -->
+    <header class="fixed top-0 w-full z-50 bg-black bg-opacity-80 cyber-grid">
+        <nav class="container mx-auto flex justify-between items-center py-6 px-8">
+            <h1 class="text-3xl font-bold neon-text">Twilight Labs</h1>
+            <ul class="flex space-x-8">
+                <li><a href="index.html" class="hover:text-cyan-400 transition">Home</a></li>
+                <li><a href="dashboard.html" class="hover:text-cyan-400 transition">Dashboard</a></li>
+                <li><a href="menu.html" class="hover:text-cyan-400 transition">Menu</a></li>
+                <li><a href="mailto:example@example.com" class="hover:text-cyan-400 transition">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Dashboard Section -->
+    <section id="dashboard-section" class="h-screen flex items-center justify-center relative">
+        <canvas id="bgCanvas" class="absolute inset-0 z-0"></canvas>
+        <div class="text-center z-10">
+            <div class="login-container-top">
+                <div class="gems-container" id="gemsContainer">Gems: <span id="gemsDisplay">0</span></div>
+                <a id="loginBtn" class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" href="dashboard.html">Login</a>
+            </div>
+
+            <div class="login-container" id="loginContainer">
+                <h2 class="text-6xl font-bold neon-text animate-pulse-slow">Login to Twilight Labs</h2>
+                <p class="text-xl mt-4">Access Your Dashboard</p>
+                <input type="file" id="userFile" accept=".txt" />
+                <input type="password" id="filePassphrase" placeholder="File Passphrase" />
+                <div class="btn-container">
+                    <button class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" onclick="login()">Login</button>
+                    <a href="index.html" class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition">Back to Home</a>
+                </div>
+                <p id="error" class="error"></p>
+            </div>
+
+            <div class="dashboard" id="dashboard">
+                <h2 class="text-6xl font-bold neon-text animate-pulse-slow">Welcome, <span id="displayUsername"></span></h2>
+                <p class="text-xl mt-4">Username: <span id="showUsername"></span></p>
+                <p class="text-xl mt-2">Gems: <span id="showGems"></span></p>
+                <div class="btn-container">
+                    <button class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" onclick="showBackupForm()">Backup Data</button>
+                    <button class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" onclick="showLoadForm()">Load Data</button>
+                    <button class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" onclick="logout()">Logout</button>
+                    <a href="index.html" class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition">Back to Home</a>
+                </div>
+            </div>
+
+            <div class="backup-container" id="backupContainer">
+                <h2 class="text-6xl font-bold neon-text animate-pulse-slow">Backup Your Data</h2>
+                <p class="text-xl mt-4">Enter a passphrase to encrypt your backup. Keep it safe!</p>
+                <input type="password" id="passphrase" placeholder="Passphrase" oninput="checkPassphraseStrength(this)" />
+                <p id="passphraseFeedback" class="passphrase-feedback"></p>
+                <div class="btn-container">
+                    <button class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" onclick="createBackup()">Create Backup</button>
+                    <button class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" onclick="cancelBackup()">Cancel</button>
+                </div>
+                <p id="backupMessage" class="success"></p>
+            </div>
+
+            <div class="load-container" id="loadContainer">
+                <h2 class="text-6xl font-bold neon-text animate-pulse-slow">Load Data from Backup</h2>
+                <p class="text-xl mt-4">Upload your backup file and enter the passphrase.</p>
+                <input type="file" id="backupFile" accept=".txt" />
+                <input type="password" id="loadPassphrase" placeholder="Passphrase" oninput="checkPassphraseStrength(this)" />
+                <p id="loadPassphraseFeedback" class="passphrase-feedback"></p>
+                <div class="btn-container">
+                    <button class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" onclick="loadBackup()">Load Data</button>
+                    <button class="cta-button bg-cyan-500 text-black glow hover:bg-cyan-400 transition" onclick="cancelLoad()">Cancel</button>
+                </div>
+                <p id="loadMessage" class="success"></p>
+            </div>
+        </div>
+    </section>
+
+    <script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
+                    var headerRowIndex = filteredData.findIndex((row, index) =>
+                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                    );
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error(e);
+                    return "";
+                }
+            }
+            return gk_fileData[filename] || "";
+        }
+    </script>
+
+    <script>
+        // Three.js Background Animation
+        const canvas = document.getElementById('bgCanvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        for (let i = 0; i < 2000; i++) {
+            vertices.push(
+                Math.random() * 600 - 300,
+                Math.random() * 600 - 300,
+                Math.random() * 600 - 300
+            );
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const material = new THREE.PointsMaterial({ color: 0x00ffff, size: 2 });
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
+
+        camera.position.z = 300;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            points.rotation.x += 0.001;
+            points.rotation.y += 0.001;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Dashboard Script
+        const body = document.body;
+        const loginContainer = document.getElementById('loginContainer');
+        const dashboard = document.getElementById('dashboard');
+        const backupContainer = document.getElementById('backupContainer');
+        const loadContainer = document.getElementById('loadContainer');
+        const error = document.getElementById('error');
+        const backupMessage = document.getElementById('backupMessage');
+        const loadMessage = document.getElementById('loadMessage');
+        const displayUsername = document.getElementById('displayUsername');
+        const showUsername = document.getElementById('showUsername');
+        const showGems = document.getElementById('showGems');
+        const passphraseFeedback = document.getElementById('passphraseFeedback');
+        const loadPassphraseFeedback = document.getElementById('loadPassphraseFeedback');
+
+        function checkPassphraseStrength(input) {
+            const passphrase = input.value;
+            const feedback = input.id === 'passphrase' ? passphraseFeedback : loadPassphraseFeedback;
+            if (passphrase.length < 8) {
+                feedback.textContent = 'Passphrase too short (minimum 8 characters).';
+                feedback.style.color = '#FF4500';
+            } else if (!/[A-Z]/.test(passphrase) || !/[0-9]/.test(passphrase)) {
+                feedback.textContent = 'Add uppercase letters and numbers for strength.';
+                feedback.style.color = '#FFD700';
+            } else {
+                feedback.textContent = 'Strong passphrase!';
+                feedback.style.color = '#00FF7F';
+            }
+        }
+
+        function generateSecretKey() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+            let key = '';
+            for (let i = 0; i < 100; i++) {
+                key += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return key;
+        }
+
+        function isUsernameTaken(username) {
+            const storedUsername = localStorage.getItem('username');
+            return storedUsername && storedUsername !== username && localStorage.getItem(`user_${username}`);
+        }
+
+        async function login() {
+            const fileInput = document.getElementById('userFile');
+            const passphrase = document.getElementById('filePassphrase').value;
+
+            if (!fileInput.files[0] || !passphrase) {
+                error.textContent = 'Please select a user file and enter a passphrase.';
+                return;
+            }
+
+            try {
+                const file = fileInput.files[0];
+                const text = await file.text();
+                const userData = JSON.parse(text);
+
+                const encoder = new TextEncoder();
+                const decoder = new TextDecoder();
+
+                const passphraseKey = await crypto.subtle.importKey(
+                    'raw',
+                    encoder.encode(passphrase),
+                    'PBKDF2',
+                    false,
+                    ['deriveKey']
+                );
+                const derivedKey = await crypto.subtle.deriveKey(
+                    {
+                        name: 'PBKDF2',
+                        salt: base64ToArrayBuffer(userData.salt),
+                        iterations: 100000,
+                        hash: 'SHA-256'
+                    },
+                    passphraseKey,
+                    { name: 'AES-GCM', length: 256 },
+                    true,
+                    ['decrypt']
+                );
+
+                const keyIv = base64ToArrayBuffer(userData.keyIv);
+                const encryptedKey = base64ToArrayBuffer(userData.encryptedKey);
+                const decryptedKey = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: keyIv },
+                    derivedKey,
+                    encryptedKey
+                );
+
+                const dataKey = await crypto.subtle.importKey(
+                    'raw',
+                    decryptedKey,
+                    'AES-GCM',
+                    true,
+                    ['decrypt']
+                );
+
+                const dataIv = base64ToArrayBuffer(userData.dataIv);
+                const encryptedData = base64ToArrayBuffer(userData.encryptedData);
+                const decryptedData = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: dataIv },
+                    dataKey,
+                    encryptedData
+                );
+
+                const data = JSON.parse(decoder.decode(decryptedData));
+
+                if (data.secretKey.length !== 100) {
+                    error.textContent = 'Invalid secret key.';
+                    return;
+                }
+
+                if (isUsernameTaken(data.username)) {
+                    error.textContent = 'Username already taken. Choose another.';
+                    return;
+                }
+
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('secretKey', data.secretKey);
+                localStorage.setItem(`user_${data.username}`, 'true');
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem(`gems_${data.username}`, data.gems || 0);
+
+                showDashboard(data.username);
+            } catch (err) {
+                error.textContent = 'Failed to login: Invalid file or passphrase.';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('username');
+            localStorage.removeItem('secretKey');
+            dashboard.classList.remove('dashboard-active');
+            loginContainer.classList.add('container-active');
+            error.textContent = '';
+            location.reload();
+        }
+
+        function showDashboard(username) {
+            loginContainer.classList.remove('container-active');
+            backupContainer.classList.remove('container-active');
+            loadContainer.classList.remove('container-active');
+            dashboard.classList.add('dashboard-active');
+            displayUsername.textContent = username;
+            showUsername.textContent = username;
+
+            const gemsKey = `gems_${username}`;
+            let gems = parseInt(localStorage.getItem(gemsKey)) || 0;
+            showGems.textContent = gems;
+            document.getElementById('gemsDisplay').textContent = gems;
+            document.getElementById('gemsContainer').style.display = 'block';
+            document.getElementById('loginBtn').style.display = 'none';
+        }
+
+        function showBackupForm() {
+            dashboard.classList.remove('dashboard-active');
+            backupContainer.classList.add('container-active');
+            backupMessage.textContent = '';
+        }
+
+        function cancelBackup() {
+            backupContainer.classList.remove('container-active');
+            dashboard.classList.add('dashboard-active');
+            document.getElementById('passphrase').value = '';
+            passphraseFeedback.textContent = '';
+        }
+
+        async function createBackup() {
+            const passphrase = document.getElementById('passphrase').value;
+            if (!passphrase) {
+                backupMessage.className = 'error';
+                backupMessage.textContent = 'Please enter a passphrase.';
+                return;
+            }
+
+            if (passphrase.length < 8) {
+                backupMessage.className = 'error';
+                backupMessage.textContent = 'Passphrase must be at least 8 characters.';
+                return;
+            }
+
+            try {
+                const username = localStorage.getItem('username');
+                const secretKey = localStorage.getItem('secretKey') || generateSecretKey();
+                const gems = parseInt(localStorage.getItem(`gems_${username}`)) || 0;
+                const data = { username, secretKey, gems };
+
+                const dataKey = await crypto.subtle.generateKey(
+                    { name: 'AES-GCM', length: 256 },
+                    true,
+                    ['encrypt', 'decrypt']
+                );
+
+                const encoder = new TextEncoder();
+                const dataBuffer = encoder.encode(JSON.stringify(data));
+
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encryptedData = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv },
+                    dataKey,
+                    dataBuffer
+                );
+
+                const exportedKey = await crypto.subtle.exportKey('raw', dataKey);
+
+                const salt = crypto.getRandomValues(new Uint8Array(16));
+                const passphraseKey = await crypto.subtle.importKey(
+                    'raw',
+                    encoder.encode(passphrase),
+                    'PBKDF2',
+                    false,
+                    ['deriveKey']
+                );
+                const derivedKey = await crypto.subtle.deriveKey(
+                    {
+                        name: 'PBKDF2',
+                        salt,
+                        iterations: 100000,
+                        hash: 'SHA-256'
+                    },
+                    passphraseKey,
+                    { name: 'AES-GCM', length: 256 },
+                    true,
+                    ['encrypt']
+                );
+
+                const keyIv = crypto.getRandomValues(new Uint8Array(12));
+                const encryptedKey = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv: keyIv },
+                    derivedKey,
+                    exportedKey
+                );
+
+                const backup = {
+                    encryptedData: arrayBufferToBase64(encryptedData),
+                    dataIv: arrayBufferToBase64(iv),
+                    encryptedKey: arrayBufferToBase64(encryptedKey),
+                    keyIv: arrayBufferToBase64(keyIv),
+                    salt: arrayBufferToBase64(salt)
+                };
+
+                const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'twilight_labs_backup.txt';
+                a.click();
+                URL.revokeObjectURL(url);
+
+                backupMessage.className = 'success';
+                backupMessage.textContent = 'Backup created successfully! File downloaded.';
+                document.getElementById('passphrase').value = '';
+                passphraseFeedback.textContent = '';
+            } catch (err) {
+                backupMessage.className = 'error';
+                backupMessage.textContent = 'Failed to create backup: ' + err.message;
+            }
+        }
+
+        function showLoadForm() {
+            dashboard.classList.remove('dashboard-active');
+            loadContainer.classList.add('container-active');
+            loadMessage.textContent = '';
+        }
+
+        function cancelLoad() {
+            loadContainer.classList.remove('container-active');
+            dashboard.classList.add('dashboard-active');
+            document.getElementById('loadPassphrase').value = '';
+            document.getElementById('backupFile').value = '';
+            loadPassphraseFeedback.textContent = '';
+        }
+
+        async function loadBackup() {
+            const fileInput = document.getElementById('backupFile');
+            const passphrase = document.getElementById('loadPassphrase').value;
+
+            if (!fileInput.files[0] || !passphrase) {
+                loadMessage.className = 'error';
+                loadMessage.textContent = 'Please select a backup file and enter a passphrase.';
+                return;
+            }
+
+            try {
+                const file = fileInput.files[0];
+                const text = await file.text();
+                const backup = JSON.parse(text);
+
+                const encoder = new TextEncoder();
+                const decoder = new TextDecoder();
+
+                const passphraseKey = await crypto.subtle.importKey(
+                    'raw',
+                    encoder.encode(passphrase),
+                    'PBKDF2',
+                    false,
+                    ['deriveKey']
+                );
+                const derivedKey = await crypto.subtle.deriveKey(
+                    {
+                        name: 'PBKDF2',
+                        salt: base64ToArrayBuffer(backup.salt),
+                        iterations: 100000,
+                        hash: 'SHA-256'
+                    },
+                    passphraseKey,
+                    { name: 'AES-GCM', length: 256 },
+                    true,
+                    ['decrypt']
+                );
+
+                const keyIv = base64ToArrayBuffer(backup.keyIv);
+                const encryptedKey = base64ToArrayBuffer(backup.encryptedKey);
+                const decryptedKey = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: keyIv },
+                    derivedKey,
+                    encryptedKey
+                );
+
+                const dataKey = await crypto.subtle.importKey(
+                    'raw',
+                    decryptedKey,
+                    'AES-GCM',
+                    true,
+                    ['decrypt']
+                );
+
+                const dataIv = base64ToArrayBuffer(backup.dataIv);
+                const encryptedData = base64ToArrayBuffer(backup.encryptedData);
+                const decryptedData = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: dataIv },
+                    dataKey,
+                    encryptedData
+                );
+
+                const data = JSON.parse(decoder.decode(decryptedData));
+
+                if (data.secretKey.length !== 100) {
+                    loadMessage.className = 'error';
+                    loadMessage.textContent = 'Invalid secret key in backup.';
+                    return;
+                }
+
+                if (isUsernameTaken(data.username)) {
+                    loadMessage.className = 'error';
+                    loadMessage.textContent = 'Cannot load: Username already taken.';
+                    return;
+                }
+
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('secretKey', data.secretKey);
+                localStorage.setItem(`user_${data.username}`, 'true');
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem(`gems_${data.username}`, data.gems || 0);
+                localStorage.setItem(`lastGemTime_${data.username}`, Date.now());
+
+                showDashboard(data.username);
+
+                loadMessage.className = 'success';
+                loadMessage.textContent = 'Data loaded successfully! Username and gems restored.';
+                document.getElementById('loadPassphrase').value = '';
+                document.getElementById('backupFile').value = '';
+                loadPassphraseFeedback.textContent = '';
+            } catch (err) {
+                loadMessage.className = 'error';
+                loadMessage.textContent = 'Failed to load data: Invalid file or passphrase.';
+            }
+        }
+
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary = atob(base64);
+            const len = binary.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        window.onload = () => {
+            if (localStorage.getItem('isLoggedIn') === 'true') {
+                const username = localStorage.getItem('username');
+                showDashboard(username);
+            } else {
+                loginContainer.classList.add('container-active');
+            }
+        };
+    </script>
+    <script src="gems.js"></script>
+</body>
+</html>
